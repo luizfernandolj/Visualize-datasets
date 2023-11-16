@@ -156,7 +156,7 @@ content = html.Div([
     dbc.Row([
         dbc.Col([
             html.Label('Quantifiers', className="pt-5"),
-            dcc.Dropdown(df_exp["quantifier"].unique(), 'All', id='qtf-dropdown'),
+            dcc.Dropdown(df_exp["quantifier"].unique(), 'All', id='qtf-dropdown', multi=True),
         ], width={"size":2, "offset":1}),
 
         dbc.Col([
