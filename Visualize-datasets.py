@@ -6,7 +6,9 @@ import dash_bootstrap_components as dbc
 
 df = pd.read_csv('table.csv')
 df_exp = pd.read_csv('experiments\\experiments.csv')
+df_exp = df_exp.drop(["actual_prop","pred_prop"], axis=1)
 
+df_exp = df_exp.groupby(["name","Test_size", "quantifier", "threshold"]).mean().reset_index()
 
 
 
@@ -56,10 +58,10 @@ CONTENT_STYLE = {
 
 sidebar = html.Div(
     [
-        html.H2("Vizualize Datasets", className="display-4 text-center", style={"color":"#F5F5F5"}),
+        html.H2("Vizualize Datasets", className="display-5 text-center", style={"color":"#F5F5F5"}),
         html.Hr(),
         html.P(
-            "Select the options to be shown on the graphs", className="lead text-center"
+            "Select the options to be shown on the graphs", className="lead text-center", style={"font-size":"11px"},
         ),
         dbc.Nav([
             html.Label('Size'),
@@ -73,7 +75,7 @@ sidebar = html.Div(
                         tooltip={"placement": "bottom", "always_visible": True},
             ),
 
-            html.Label('MaxSizeTest', className="pt-5"),
+            html.Label('MaxSizeTest', className="pt-3"),
             dcc.RangeSlider(
                         id='max-test-size-slider',
                         min=df['MaxSizeTest'].min(),
@@ -84,7 +86,7 @@ sidebar = html.Div(
                         tooltip={"placement": "bottom", "always_visible": True},
             ),
 
-            html.Label('Alpha', className="pt-5"),
+            html.Label('Alpha', className="pt-3"),
             dcc.RangeSlider(
                         id='positive-cases-slider',
                         min=df['%Positive'].min(),
@@ -95,7 +97,7 @@ sidebar = html.Div(
                         tooltip={"placement": "bottom", "always_visible": True},
             ),
 
-            html.Label('Complexity (AUC)', className="pt-5"),
+            html.Label('Complexity (AUC)', className="pt-3"),
             dcc.RangeSlider(
                         id='auc-slider',
                         min=df['AUC'].min(),
@@ -109,7 +111,7 @@ sidebar = html.Div(
         vertical=True,
         pills=True),
         html.P(
-                "", className="lead text-center pt-5 fw-bold fs-1", id="dataset_rows"
+                "", className="lead text-center pt-3 fw-bold fs-1", id="dataset_rows"
             ),
     ],
     style=SIDEBAR_STYLE,
@@ -146,7 +148,7 @@ content = html.Div([
             html.P("We applied 11 quantifiers algorithms to each of the datasets, and we made severals experiments "
                 "varying size-test, alpha, threshold and analyze the data with the absolute error", className="lead text-center m-5 text-md-start"
             ),
-        ], width=6, style={"border":"1px solid #2e2f2e",
+        ], width=8, style={"border":"1px solid #2e2f2e",
                            "background-color":"#2e2f2e",
                            "color":"#F5F5F5",
                            "box-shadow": "rgba(100, 100, 111, 0.2) 0px 7px 29px 0px",
@@ -155,24 +157,35 @@ content = html.Div([
 
     dbc.Row([
         dbc.Col([
-            html.Label('Quantifiers', className="pt-5"),
-            dcc.Dropdown(df_exp["quantifier"].unique(), 'All', id='qtf-dropdown', multi=True),
-        ], width={"size":2, "offset":1}),
+            html.Label('Dataset', className="pt-5"),
+            dcc.Dropdown(df_exp["name"].unique(), placeholder="All", id='datasets-dropdown'),
+        ], width=4)
+    ], justify="around"),
+
+    dbc.Row([
+        dbc.Col([
+            html.Label('Quantifiers', className="pt-4"),
+            dcc.Dropdown(df_exp["quantifier"].unique(), placeholder="All", id='qtf-dropdown', multi=True),
+        ], width={"size":2, "offset":0}),
 
         dbc.Col([
-            html.Label('Alpha', className="pt-5"),
-            dcc.Slider(0, 20, 5, value=10,id='alpha-slider')
-        ], width={"size":3}),
+            html.Label('Alpha', className="pt-4"),
+            dcc.Slider(df_exp["alpha"].min(),
+                       df_exp["alpha"].max(),
+                       0.1,
+                       value=0.5,id='alpha-slider',
+                       tooltip={"placement": "bottom", "always_visible": True})
+        ], width={"size":4}),
 
         dbc.Col([
-            html.Label('Batch-sizes', className="pt-5"),
-            dcc.Slider(0, 20, 5, value=10,id='batch-slider')
-        ], width={"size":3}),
-
-        dbc.Col([
-            html.Label('Threshold', className="pt-5"),
-            dcc.Slider(0, 20, 5, value=10,id='thr-slider')
-        ], width={"size":2}),
+            html.Label('Threshold', className="pt-4"),
+            dcc.Slider(df_exp["threshold"].min(),
+                       df_exp["threshold"].max(),
+                       0.3,
+                       marks={"0.2": "0.2", "0.5": "0.5"},
+                       value=0.5,id='thr-slider',
+                       tooltip={"placement": "bottom", "always_visible": True})
+        ], width={"size":4}),
     ], justify="around"),
 
     dbc.Row([
@@ -202,15 +215,13 @@ app.layout = html.Div([
 
 
 
-@callback([
+@callback(
         Output('datatable', 'data'),
         Output('dataset_rows', "children"),
-        Output('line-ae', 'figure'),
         Input('size-slider', 'value'),
         Input('positive-cases-slider', 'value'),
         Input('max-test-size-slider', 'value'),
         Input('auc-slider', 'value'),
-    ]
 )
 
 def update_table(selected_size, selected_positive_cases, selected_max_test_size, selected_auc):
@@ -220,9 +231,46 @@ def update_table(selected_size, selected_positive_cases, selected_max_test_size,
         (df['MaxSizeTest'] >= selected_max_test_size[0]) & (df['MaxSizeTest'] <= selected_max_test_size[1]) &
         (df['AUC'] >= selected_auc[0]) & (df['AUC'] <= selected_auc[1])
     ]
-    figure=px.line(filtered_df, x="size", y="%Positive", title="Quantifiers absolute error", height=800)
 
-    return filtered_df.to_dict('records'), f"{len(filtered_df.index)} Datasets", figure
+    return filtered_df.to_dict('records'), f"{len(filtered_df.index)} Datasets"
+
+
+
+
+
+@callback(
+    Output("line-ae", "figure"),
+    Input("datasets-dropdown", "value"),
+    Input("qtf-dropdown", "value"),
+    Input("alpha-slider", "value"),
+    Input("thr-slider", "value")
+)
+
+def update_graph(data, qtf, alp, thr):
+    grp = (df_exp.groupby(by=["name","quantifier", "alpha","threshold", "Test_size"])["abs_error"].
+           mean(numeric_only=True).reset_index())
+    grp = grp.groupby(["alpha", "threshold"])
+    grp = grp.get_group((alp, thr)).reset_index(drop=True)
+    if data:
+        if qtf:
+            fig_data = grp[(grp["name"] == data) & (grp["quantifier"].isin(qtf))]
+        else:
+            fig_data = grp[grp["name"] == data]
+    else:
+        return {}
+
+    figure = px.line(fig_data,
+                     x="Test_size",
+                     y="abs_error",
+                     color="quantifier",
+                     title="Quantifiers absolute error",
+                     markers=True,
+                     height=500)
+
+    return figure
+
+
+
 
 
 
