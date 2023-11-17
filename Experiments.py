@@ -199,14 +199,14 @@ class MakeExperiments:
             path = f"{self.path_experiment}.csv"
 
         for i, data in enumerate(self.datasets["dataset"]):
-
+            print(i)
             types = data.dtypes
             label_encoder = LabelEncoder()
 
-            for i in range(len(types)):
-                if (data.dtypes[i] == "object"):
-                    labels = label_encoder.fit_transform(data.iloc[:, i])
-                    data[data.columns[i]] = labels
+            for j in range(len(types)):
+                if (data.dtypes.iloc[j] == "object"):
+                    labels = label_encoder.fit_transform(data.iloc[:, j])
+                    data[data.columns[j]] = labels
 
             popColumn = data.pop("class")
             data = pd.concat([data, popColumn], axis=1)
@@ -236,8 +236,8 @@ class MakeExperiments:
 #Example
 if __name__ == '__main__':
 
-    #p = "C:\\Users\Luiz Fernando\\JupyterFiles\\Quantifier-project\\Quantifiers\\"
-    p = ""
+    p = "C:\\Users\\Luiz Fernando\\JupyterFiles\\Visualize-datasets\\"
+    #p = "C:\\Users\\luiz_\\Jupyter\\Visualize-datasets\\"
 
     clf = RandomForestClassifier(n_estimators=200)
 

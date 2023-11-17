@@ -5,14 +5,10 @@ from dash import Dash, html, dcc, dash_table, Input, Output, State, callback
 import dash_bootstrap_components as dbc
 
 df = pd.read_csv('table.csv')
-df_exp = pd.read_csv('experiments\\experiments.csv')
+df_exp = pd.read_csv('experiments\\experimentsexp.csv')
 df_exp = df_exp.drop(["actual_prop","pred_prop"], axis=1)
 
-df_exp = df_exp.groupby(["name","Test_size", "quantifier", "threshold","sample"]).mean().reset_index()
-
-
-
-
+df_exp = df_exp.groupby(["name","alpha","Test_size", "quantifier", "threshold","sample"]).mean().reset_index()
 
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.LUX])
@@ -88,7 +84,7 @@ sidebar = html.Div(
                         min=df_exp['Test_size'].min(),
                         max=df_exp['Test_size'].max(),
                         marks={i: {'label': str(i), 'style': {'color': '#AAA'}} for i in
-                               range(df_exp['Test_size'].min(), df_exp['Test_size'].max() + 1, 5)},
+                               range(df_exp['Test_size'].min(), df_exp['Test_size'].max() + 1, 10)},
                         step=5,
                         value=[df_exp['Test_size'].min(), df_exp['Test_size'].max()],
                     ),
@@ -98,10 +94,12 @@ sidebar = html.Div(
             dbc.Row([
                 dbc.Col([
                     html.Label('Alpha', className="pt-3"),
-                    dcc.Slider(df_exp["alpha"].min(),
-                               df_exp["alpha"].max(),
-                               0.1,
-                               value=0.5,id='alpha-slider',
+                    dcc.Slider(min=df_exp["alpha"].min(),
+                               max=df_exp["alpha"].max(),
+                               step=0.3,
+                               value=0.5,
+                               marks={"0.2": "0.2", "0.5": "0.5", "0.8":"0.8"},
+                               id='alpha-slider',
                                tooltip={"placement": "bottom", "always_visible": True})
                 ])
             ]),
@@ -112,9 +110,15 @@ sidebar = html.Div(
                     dcc.Slider(df_exp["threshold"].min(),
                                df_exp["threshold"].max(),
                                0.3,
-                               marks={"0.2": "0.2", "0.5": "0.5"},
+                               marks={"0.2": "0.2", "0.5": "0.5", "0.8":"0.8"},
                                value=0.5,id='thr-slider',
                                tooltip={"placement": "bottom", "always_visible": True})
+                ])
+            ]),
+
+            dbc.Row([
+                dbc.Col([
+                    html.P(children="Complexity of the dataset: ", id="comp_dt")
                 ])
             ])
         ],
@@ -238,7 +242,13 @@ content = html.Div([
         dbc.Col([
             dcc.Graph(id="box-ae")
         ], width=10)
-    ], justify="around", style={"margin-top":"40px"})
+    ], justify="around", style={"margin-top":"40px"}),
+
+    dbc.Row([
+        dbc.Col([
+            dcc.Graph(id="rank-dataset")
+        ], width=10)
+    ], justify="around", style={"margin-top":"40px"}),
 
 ], id="page-content", style=CONTENT_STYLE)
 
@@ -287,6 +297,8 @@ def update_table(selected_size, selected_positive_cases, selected_max_test_size,
 @callback(
     Output("line-ae", "figure"),
     Output("box-ae", "figure"),
+    Output("comp_dt", "children"),
+    Output("rank-dataset", "figure"),
     Input("datasets-dropdown", "value"),
     Input("qtf-dropdown", "value"),
     Input("alpha-slider", "value"),
@@ -297,17 +309,22 @@ def update_table(selected_size, selected_positive_cases, selected_max_test_size,
 def update_graph(data, qtf, alp, thr, size):
     grp = (df_exp.groupby(by=["name","quantifier", "alpha","threshold", "Test_size"])["abs_error"].
            mean(numeric_only=True).reset_index())
+    grp["abs_error"] = grp["abs_error"].round(2)
     grp = grp.groupby(["alpha", "threshold"])
     grp = grp.get_group((alp, thr)).reset_index(drop=True)
-    grp = grp[(grp["Test_size"] > size[0]) & grp["Test_size"] < size[1]]
+    comp_dt = "Complexity of the dataset: "
     if data:
+        comp_dt = f"Complexity of the dataset: {str(list(df[df['name'] == data]['AUC'])[0])}"
         if qtf:
-            fig_data = grp[(grp["name"] == data) & (grp["quantifier"].isin(qtf))]
+            fig_data = grp[(grp["name"] == data) & (grp["quantifier"].isin(qtf)) & (grp["Test_size"] >= size[0]) & (grp["Test_size"] <= size[1])]
         else:
-            fig_data = grp[grp["name"] == data]
+            fig_data = grp[(grp["name"] == data) & (grp["Test_size"] >= size[0]) & (grp["Test_size"] <= size[1])]
     else:
-        return px.line(title="Quantifiers absolute error", height=500), px.box(title="Quantifiers absolute error",
-                                                                               height=500)
+        line = px.line(title="Quantifiers absolute error", height=500)
+        box = px.box(title="Quantifiers absolute error",height=500)
+        bar = px.bar()
+        return line, box, comp_dt, bar
+    print(fig_data)
 
     line = px.line(fig_data,
                      x="Test_size",
@@ -324,7 +341,11 @@ def update_graph(data, qtf, alp, thr, size):
                    title="Quantifiers absolute error",
                    height=500)
 
-    return line, box
+    data_bar = fig_data.groupby("quantifier")["abs_error"].mean(numeric_only=True).rank(ascending=True).reset_index()
+    bar = px.bar(data_bar, x="quantifier", y="abs_error", color="quantifier",
+                 title="Quantifiers absolute error", height=500)
+
+    return line, box, comp_dt, bar
 
 
 
