@@ -8,7 +8,7 @@ df = pd.read_csv('table.csv')
 df_exp = pd.read_csv('experiments\\experiments.csv')
 df_exp = df_exp.drop(["actual_prop","pred_prop"], axis=1)
 
-df_exp = df_exp.groupby(["name","Test_size", "quantifier", "threshold"]).mean().reset_index()
+df_exp = df_exp.groupby(["name","Test_size", "quantifier", "threshold","sample"]).mean().reset_index()
 
 
 
@@ -66,7 +66,7 @@ sidebar = html.Div(
         dbc.Nav([
             dbc.Row([
                 dbc.Col([
-                    html.Label('Dataset', className="pt-5"),
+                    html.Label('Dataset', className="pt-1"),
                     dcc.Dropdown(df_exp["name"].unique(), placeholder="All", id='datasets-dropdown',
                                  style={"color":"#2e2f2e"}),
                 ])

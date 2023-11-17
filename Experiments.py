@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 
 from quantifiers.ClassifyCountCorrect.AdjustedClassifyCount import AdjustedClassifyCount
 from quantifiers.ClassifyCountCorrect.ClassifyCount import ClassifyCount
@@ -198,6 +199,18 @@ class MakeExperiments:
             path = f"{self.path_experiment}.csv"
 
         for i, data in enumerate(self.datasets["dataset"]):
+
+            types = data.dtypes
+            label_encoder = LabelEncoder()
+
+            for i in range(len(types)):
+                if (data.dtypes[i] == "object"):
+                    labels = label_encoder.fit_transform(data.iloc[:, i])
+                    data[data.columns[i]] = labels
+
+            popColumn = data.pop("class")
+            data = pd.concat([data, popColumn], axis=1)
+
             X = data.iloc[:, :-1]
             y = data.iloc[:, -1]
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
@@ -224,15 +237,15 @@ class MakeExperiments:
 if __name__ == '__main__':
 
     #p = "C:\\Users\Luiz Fernando\\JupyterFiles\\Quantifier-project\\Quantifiers\\"
-    p = "C:\\Users\\luiz_\\Jupyter\\Visualize-datasets\\"
+    p = ""
 
     clf = RandomForestClassifier(n_estimators=200)
 
     exp = MakeExperiments(datasets_folder=f"{p}data",
                           path_experiment=f"{p}experiments\\experiments",
-                          niterations=1,
-                          batch_sizes=[10],
-                          alphas=[0.5],
+                          niterations=3,
+                          batch_sizes=range(10, 100, 10),
+                          alphas=[0.2, 0.5, 0.8],
                           clf=clf,
-                          thr=[0.2, 0.5])
+                          thr=[0.2, 0.5, 0.8])
     exp.make_experiments()
