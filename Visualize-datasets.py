@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import plotly.express as px
-from dash import Dash, html, dcc, dash_table, Input, Output, callback
+from dash import Dash, html, dcc, dash_table, Input, Output, State, callback
 import dash_bootstrap_components as dbc
 
 df = pd.read_csv('table.csv')
@@ -160,8 +160,8 @@ content = html.Div([
                 min=df['size'].min(),
                 max=df['size'].max(),
                 marks={i: {'label': str(i), 'style': {'color': '#AAA'}} for i in
-                       range(df['size'].min(), df['size'].max() + 1, 150000)},
-                step=1,
+                       np.arange(df['size'].min(), df['size'].median() + 1, 400000)},
+                step=100,
                 value=[df['size'].min(), df['size'].max()],
                 tooltip={"placement": "bottom", "always_visible": True},
             ),
@@ -201,7 +201,7 @@ content = html.Div([
                 min=df['AUC'].min(),
                 max=df['AUC'].max(),
                 marks={i: {'label': str(i), 'style': {'color': '#AAA'}} for i in
-                       np.round(np.arange(df['AUC'].min(), df['AUC'].max() + 1, 0.1), 2)},
+                       np.round(np.arange(df['AUC'].min(), df['AUC'].max() + 1, 0.2), 2)},
                 step=0.01,
                 value=[df['AUC'].min(), df['AUC'].max()],
                 tooltip={"placement": "bottom", "always_visible": True},
@@ -286,12 +286,12 @@ def update_table(selected_size, selected_positive_cases, selected_max_test_size,
 
 @callback(
     Output("line-ae", "figure"),
-    #Output("box-ae", "figure"),
+    Output("box-ae", "figure"),
     Input("datasets-dropdown", "value"),
     Input("qtf-dropdown", "value"),
     Input("alpha-slider", "value"),
     Input("thr-slider", "value"),
-    Input("size-slicer", "value")
+    Input("size-slicer", "value"),
 )
 
 def update_graph(data, qtf, alp, thr, size):
@@ -306,7 +306,8 @@ def update_graph(data, qtf, alp, thr, size):
         else:
             fig_data = grp[grp["name"] == data]
     else:
-        return {}
+        return px.line(title="Quantifiers absolute error", height=500), px.box(title="Quantifiers absolute error",
+                                                                               height=500)
 
     line = px.line(fig_data,
                      x="Test_size",
@@ -316,7 +317,14 @@ def update_graph(data, qtf, alp, thr, size):
                      markers=True,
                      height=500)
 
-    return line
+    box = px.box(fig_data,
+                   x="quantifier",
+                   y="abs_error",
+                   color="quantifier",
+                   title="Quantifiers absolute error",
+                   height=500)
+
+    return line, box
 
 
 
@@ -329,4 +337,4 @@ def update_graph(data, qtf, alp, thr, size):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True, port=8888)
+    app.run_server(debug=True, port=8000)
